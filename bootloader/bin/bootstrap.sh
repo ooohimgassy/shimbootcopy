@@ -292,16 +292,9 @@ exec_init() {
 boot_target() {
   local target="$1"
 
-  echo "moving mounts to newroot"
+  
   mkdir /newroot
-  #use cryptsetup to check if the rootfs is encrypted
-  if [ -x "$(command -v cryptsetup)" ] && cryptsetup luksDump "$target" >/dev/null 2>&1; then
-    cryptsetup open $target rootfs
-    mount /dev/mapper/rootfs /newroot
-  else
-    mount $target /newroot
-  fi
-  #bind mount /dev/console to show systemd boot msgs
+  #luks code
   if [ -f "/bin/frecon-lite" ]; then 
     rm -f /dev/console
     touch /dev/console #this has to be a regular file otherwise the system crashes afterwards
@@ -309,7 +302,7 @@ boot_target() {
   fi
   move_mounts /newroot
 
-  echo "switching root"
+ 
   mkdir -p /newroot/bootloader
   pivot_root /newroot /newroot/bootloader
   exec_init
