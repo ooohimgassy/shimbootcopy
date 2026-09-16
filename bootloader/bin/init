@@ -8,7 +8,7 @@
 
 #original: https://chromium.googlesource.com/chromiumos/platform/initramfs/+/refs/heads/main/factory_shim/init
 
-set -x
+set +x
 
 detect_tty() {
   if [ -f "/bin/frecon-lite" ]; then
