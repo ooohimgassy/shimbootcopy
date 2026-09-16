@@ -294,7 +294,26 @@ boot_target() {
 
   
   mkdir /newroot
-  #luks code
+  if [ -x "$(command -v cryptsetup)" ] && cryptsetup luksDump "$target" >/dev/null 2>&1; then
+  if [ ! -f /opt/rootfs.key ]; then
+    clear
+    echo "ERROR: LUKS key file is missing."
+    sleep 1d
+  fi
+
+  if ! cryptsetup open \
+      --key-file /opt/rootfs.key \
+      "$target" \
+      rootfs; then
+    clear
+    echo "ERROR: Failed to unlock root filesystem."
+    sleep 1d
+  fi
+
+  mount /dev/mapper/rootfs /newroot
+else
+  mount "$target" /newroot
+fi
   if [ -f "/bin/frecon-lite" ]; then 
     rm -f /dev/console
     touch /dev/console #this has to be a regular file otherwise the system crashes afterwards
