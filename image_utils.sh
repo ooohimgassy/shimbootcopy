@@ -83,21 +83,32 @@ create_partitions() {
   local image_loop=$(realpath -m "${1}")
   local kernel_path=$(realpath -m "${2}")
   local is_luks="${3}"
-  local crypt_password="${4}"
+  local luks_keyfile="${4}"
 
   #create stateful
   mkfs.ext4 "${image_loop}p1"
+
   #copy kernel
   dd if=$kernel_path of="${image_loop}p2" bs=1M oflag=sync
   make_bootable $image_loop
+
   #create bootloader partition
   mkfs.ext2 "${image_loop}p3"
+
   #create rootfs partition
   if [ "$is_luks" ]; then
-    echo "$crypt_password" | cryptsetup luksFormat "${image_loop}p4"
-    echo "$crypt_password" | cryptsetup luksOpen "${image_loop}p4" rootfs
+    cryptsetup luksFormat \
+      --batch-mode \
+      --key-file "$luks_keyfile" \
+      "${image_loop}p4"
+
+    cryptsetup luksOpen \
+      --key-file "$luks_keyfile" \
+      "${image_loop}p4" \
+      rootfs
+
     mkfs.ext4 /dev/mapper/rootfs
-  else 
+  else
     mkfs.ext4 "${image_loop}p4"
   fi
 }
