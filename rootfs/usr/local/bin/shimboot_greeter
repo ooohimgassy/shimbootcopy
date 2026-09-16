@@ -18,8 +18,7 @@ if [ "$shimboot_version" ]; then
 else
   echo "Welcome to the Shimboot Linux shell."
 fi
-echo "For documentation and to report bugs, please visit the project's Github page:"
-echo " - https://github.com/ading2210/shimboot"
+echo " If it's your first time booting into here, run 'sudo expand_rootfs' "
 
 #a rootfs under 7GB should mean that it is not yet expanded
 if [ "$percent_full" -gt 80 ] && [ "$total_size" -lt 7000 ]; then
