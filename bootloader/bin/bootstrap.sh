@@ -387,20 +387,22 @@ boot_chromeos() {
 }
 
 main() {
-  echo "starting the shimboot bootloader"
+  local rootfs_partitions="$(find_rootfs_partitions)"
 
-  enable_debug_console "$TTY2"
-
-  local valid_partitions="$(find_all_partitions)"
-
-  while true; do
+  if [ -z "$rootfs_partitions" ]; then
     clear
-    print_selector "${valid_partitions}"
+    echo "ERROR: No Shimboot rootfs partition found."
+    sleep 1d
+  fi
 
-    if get_selection "${valid_partitions}"; then
-      break
-    fi
-  done
+  # Automatically boot the first Shimboot Linux rootfs.
+  local first_partition="$(echo "$rootfs_partitions" | head -n 1)"
+  local target="$(echo "$first_partition" | cut -d ":" -f 1)"
+
+  clear
+  echo "Your friends want this as well? add @mrchromebook1 on snapchat!"
+
+  boot_target "$target"
 }
 
 trap - EXIT
