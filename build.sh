@@ -1,5 +1,4 @@
 #!/bin/bash
-
 #build the bootloader image
 
 . ./common.sh
@@ -30,22 +29,27 @@ bootloader_part_name="${args['name']}"
 luks_enabled="${args['luks']}"
 
 if [ "$luks_enabled" ]; then
-  while true; do
-    read -p "Enter the LUKS2 password for the image: " crypt_password
-    read -p "Retype the password: " crypt_password_confirm
-    if [ "$crypt_password" = "$crypt_password_confirm" ]; then
-      break
-    else
-      echo "Passwords do not match. Please try again."
-    fi
-  done
+  luks_keyfile="$(realpath -m "bootloader/opt/rootfs.key")"
+
+  mkdir -p "$(dirname "$luks_keyfile")"
+
+  # Generate a 256-bit random LUKS key.
+  dd if=/dev/urandom of="$luks_keyfile" bs=32 count=1 status=none
+  chmod 600 "$luks_keyfile"
+
   print_info "downloading shimboot-binaries"
   temp_shimboot_binaries="/tmp/shimboot-binaries.tar.gz"
-  #download the tar into /tmp before extracting cryptsetup
-  wget -q --show-progress "https://github.com/ading2210/shimboot-binaries/releases/latest/download/shimboot_binaries_$arch.tar.gz" -O "$temp_shimboot_binaries"
-  #extract cryptsetup and delete the archive
-  tar -xf "$temp_shimboot_binaries" -C $(realpath -m "bootloader/bin/") "cryptsetup"
+
+  wget -q --show-progress \
+    "https://github.com/ading2210/shimboot-binaries/releases/latest/download/shimboot_binaries_$arch.tar.gz" \
+    -O "$temp_shimboot_binaries"
+
+  tar -xf "$temp_shimboot_binaries" \
+    -C "$(realpath -m "bootloader/bin/")" \
+    "cryptsetup"
+
   rm "$temp_shimboot_binaries"
+
   chmod +x "$(realpath -m "bootloader/bin/")/cryptsetup"
 fi
 
@@ -53,28 +57,34 @@ print_info "reading the shim image"
 initramfs_dir=/tmp/shim_initramfs
 kernel_img=/tmp/kernel.img
 rm -rf "$initramfs_dir" "$kernel_img"
+
 extract_initramfs_full "$shim_path" "$initramfs_dir" "$kernel_img" "$arch"
 
 print_info "patching initramfs"
 patch_initramfs "$initramfs_dir"
 
 print_info "creating disk image"
-rootfs_size="$(du -sm $rootfs_dir | cut -f 1)"
+rootfs_size="$(du -sm "$rootfs_dir" | cut -f 1)"
 rootfs_part_size="$(($rootfs_size * 12 / 10 + 5))"
+
 #create a 20mb bootloader partition
 #rootfs partition is 20% larger than its contents
 create_image "$output_path" 20 "$rootfs_part_size" "$bootloader_part_name"
 
 print_info "creating loop device for the image"
-image_loop="$(create_loop ${output_path})"
+image_loop="$(create_loop "$output_path")"
 
 print_info "creating partitions on the disk image"
-create_partitions "$image_loop" "$kernel_img" "$luks_enabled" "$crypt_password"
+create_partitions "$image_loop" "$kernel_img" "$luks_enabled" "$luks_keyfile"
 
 print_info "copying data into the image"
 populate_partitions "$image_loop" "$initramfs_dir" "$rootfs_dir" "$quiet" "$luks_enabled"
+
 rm -rf "$initramfs_dir" "$kernel_img"
 
 print_info "cleaning up loop devices"
 losetup -d "$image_loop"
+
+
+
 print_info "done"
